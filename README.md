@@ -27,6 +27,11 @@ const policy = S3Policy.generate({
 ### TODO
 
 
+### Dependencies
+ - Encoding Base64: https://github.com/feross/buffer
+ - Encrypting Policy: https://github.com/brix/crypto-js
+ 
+
 ### License
 ```
 The MIT License (MIT)
