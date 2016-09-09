@@ -19,7 +19,8 @@ const policy = S3Policy.generate({
   contentType: 'OBJECT_CONTENT_TYPE',
   region: 'S3_BUCKET_REGION',
   accessKey: 'S3_ACCESS_KEY',
-  secretKey: 'S3_SECRET_KEY'
+  secretKey: 'S3_SECRET_KEY',
+  metadata: {'x-amz-meta-lat': '41.891',...} (optional)
 })
 ```
 
@@ -30,7 +31,7 @@ const policy = S3Policy.generate({
 ### Dependencies
  - Encoding Base64: https://github.com/feross/buffer
  - Encrypting Policy: https://github.com/brix/crypto-js
- 
+
 
 ### License
 ```
