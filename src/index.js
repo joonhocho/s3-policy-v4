@@ -54,33 +54,25 @@ const getPolicyParams = (options) => {
     region: options.region,
     secretKey: options.secretKey,
     successActionStatus: String(options.successActionStatus || DEFAULT_SUCCESS_ACTION_STATUS),
-    metadata: (options.metadata || {})
+    metadata: options.metadata || {},
   };
 };
 
 
-const formatPolicyForEncoding = (policy) => {
-  let policyForEncoding = {
-    expiration: policy.expiration,
-    conditions: [
-     {bucket: policy.bucket},
-     {key: policy.key},
-     {acl: policy.acl},
-     {success_action_status: policy.successActionStatus},
-     {'Content-Type': policy.contentType},
-     {'x-amz-credential': policy.credential},
-     {'x-amz-algorithm': policy.algorithm},
-     {'x-amz-date': policy.date.amzDate},
-    ],
-  };
-
-  Object.keys(policy.metadata).forEach((k) => {
-    let metadata = String(policy.metadata[k])
-    policyForEncoding.conditions.push({[k]: metadata});
-  });
-
-  return policyForEncoding;
-};
+const formatPolicyForEncoding = (policy) => ({
+  expiration: policy.expiration,
+  conditions: [
+    {bucket: policy.bucket},
+    {key: policy.key},
+    {acl: policy.acl},
+    {success_action_status: policy.successActionStatus},
+    {'Content-Type': policy.contentType},
+    {'x-amz-credential': policy.credential},
+    {'x-amz-algorithm': policy.algorithm},
+    {'x-amz-date': policy.date.amzDate},
+    ...Object.keys(policy.metadata).map((k) => ({[k]: String(policy.metadata[k])})),
+  ],
+});
 
 
 const getEncodedPolicy = (policy) =>
