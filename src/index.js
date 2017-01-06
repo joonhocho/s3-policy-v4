@@ -5,11 +5,15 @@
 const CryptoJS = require('crypto-js');
 const Buffer = global.Buffer || require('buffer').Buffer;
 
-const assert = (object, message) => {
-  if (object == null) throw new Error(message);
+const validate = (object, test, message) => {
+  if (!test(object)) throw new Error(message);
 };
+const isNonNullString = (v) => typeof v === 'string' && v !== null;
+const isLengthyList = (v) => typeof v === 'object' && v !== null && v.length !== undefined;
+const isNonZeroNumber = (v) => typeof v === 'number' && v > 0;
+const isThreeDigitString = (v) => typeof v === 'string' && v.match(/[0-9]{3}/);
 
-const FIVE_MINUTES = 5 * 60 * 1000;
+const FIVE_MINUTES = 5 * 60;
 
 const AWS_ACL = 'public-read';
 const AWS_SERVICE_NAME = 's3';
@@ -35,42 +39,30 @@ const getDate = () => {
  *
  *     2016-03-24T20:43:47.314Z
  */
-const getExpirationDate = () => new Date(Date.now() + FIVE_MINUTES).toISOString();
+const getExpirationDate = (secs) => new Date(Date.now() + secs * 1000).toISOString();
 
+const encodeConditions = (conditions) => {
+  return conditions.map((c) => {
+    const keys = Object.keys(c);
+    if (keys.length === 1) {
+      return { [keys[0]]: `${c[keys[0]]}` };
+    } else {
+      return keys.map((k) => `${c[keys[k]]}`);
+    }
+  });
+}
 
-const getPolicyParams = (options) => {
-  const date = getDate();
-  const expiration = getExpirationDate();
-
-  return {
-    acl: AWS_ACL,
-    algorithm: AWS_ALGORITHM,
-    bucket: options.bucket,
-    contentType: options.contentType,
-    credential: `${options.accessKey}/${date.yymmdd}/${options.region}/${AWS_SERVICE_NAME}/${AWS_REQUEST_POLICY_VERSION}`,
-    date,
-    expiration,
-    key: options.key,
-    region: options.region,
-    secretKey: options.secretKey,
-    successActionStatus: String(options.successActionStatus || DEFAULT_SUCCESS_ACTION_STATUS),
-    metadata: options.metadata || {},
-  };
-};
-
-
-const formatPolicyForEncoding = (policy) => ({
-  expiration: policy.expiration,
+const formatPolicyForEncoding = (options) => ({
+  expiration: options.expiration,
   conditions: [
-    {bucket: policy.bucket},
-    {key: policy.key},
-    {acl: policy.acl},
-    {success_action_status: policy.successActionStatus},
-    {'Content-Type': policy.contentType},
-    {'x-amz-credential': policy.credential},
-    {'x-amz-algorithm': policy.algorithm},
-    {'x-amz-date': policy.date.amzDate},
-    ...Object.keys(policy.metadata).map((k) => ({[k]: String(policy.metadata[k])})),
+    {bucket: options.bucket},
+    {key: options.key},
+    {acl: options.acl},
+    {success_action_status: options.successActionStatus},
+    {'x-amz-credential': options.credential},
+    {'x-amz-algorithm': options.algorithm},
+    {'x-amz-date': options.date.amzDate},
+    ...encodeConditions(options.conditions)
   ],
 });
 
@@ -110,21 +102,51 @@ const formatPolicyForRequestBody = (base64EncodedPolicy, signature, options) => 
 
 
 export class S3Policy {
-  static generate(options) {
-    assert(options, 'Must provide options');
-    assert(options.key, 'Must provide `key` option with the object key');
-    assert(options.bucket, 'Must provide `bucket` option with your AWS bucket name');
-    assert(options.contentType, 'Must provide `contentType` option with the object content type');
-    assert(options.region, 'Must provide `region` option with your AWS region');
-    assert(options.accessKey, 'Must provide `accessKey` option with your AWSAccessKeyId');
-    assert(options.secretKey, 'Must provide `secretKey` option with your AWSSecretKey');
+static generate({
+  // required:
+  bucket = null,
+  key = null,
+  region = null,
+  accessKey = null,
+  secretKey = null,
+  // optional:
+  acl = AWS_ACL,
+  conditions = {},
+  expirationSec = FIVE_MINUTES,
+  successActionStatus = DEFAULT_SUCCESS_ACTION_STATUS
+} = {}) {
+    validate(bucket, isNonNullString, 'Must provide `bucket` option with your AWS bucket name');
+    validate(key, isNonNullString, 'Must provide `key` option with the object key');
+    validate(region, isNonNullString, 'Must provide `region` option with your AWS region');
+    validate(accessKey, isNonNullString, 'Must provide `accessKey` option with your AWSAccessKeyId');
+    validate(secretKey, isNonNullString, 'Must provide `secretKey` option with your AWSSecretKey');
+    validate(acl, isNonNullString, 'Must provide `acl` as string value');
+    validate(conditions, isLengthyList, 'Conditions must be a list');
+    validate(expirationSec, isNonZeroNumber, 'Expiration seconds must be > 0');
+    validate(successActionStatus, isThreeDigitString, 'successActionStatus seconds must be > 0');
 
-    const policyParams = getPolicyParams(options);
-    const policy = formatPolicyForEncoding(policyParams);
+    const date = getDate();
+
+    const options = {
+      // from parameters
+      region,
+      accessKey,
+      secretKey,
+      acl,
+      conditions,
+      successActionStatus,
+      // calculated options
+      algorithm: AWS_ALGORITHM,
+      credential: `${accessKey}/${date.yymmdd}/${region}/${AWS_SERVICE_NAME}/${AWS_REQUEST_POLICY_VERSION}`,
+      date,
+      expiration: getExpirationDate(expirationSec)
+    };
+
+    const policy = formatPolicyForEncoding(options);
     const base64EncodedPolicy = getEncodedPolicy(policy);
-    const signature = getSignature(base64EncodedPolicy, policyParams);
+    const signature = getSignature(base64EncodedPolicy, options);
 
-    return formatPolicyForRequestBody(base64EncodedPolicy, signature, policyParams);
+    return formatPolicyForRequestBody(base64EncodedPolicy, signature, options);
   }
 }
 

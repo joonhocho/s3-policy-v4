@@ -13,6 +13,7 @@ npm install --save s3-policy-v4
 ```javascript
 import S3Policy from 's3-policy-v4';
 
+```javascript
 const policy = S3Policy.generate({
   key: 'S3_OBJECT_KEY',
   bucket: 'S3_BUCKET_NAME',
@@ -20,10 +21,14 @@ const policy = S3Policy.generate({
   region: 'S3_BUCKET_REGION',
   accessKey: 'S3_ACCESS_KEY',
   secretKey: 'S3_SECRET_KEY',
-  metadata: {'x-amz-meta-lat': '41.891',...} (optional)
-})
+  acl: 'ACL',                                  // e.g. 'public-read'
+  conditions: [                                // all the fiddly conditions to
+    ['content-length-range', 0, 1048579],      // your heart's desire!
+    ['starts-with', '$Content-Type', 'image/'],
+    {bucket: 'mr-bucket'}
+  ]
+});
 ```
-
 
 ### TODO
 

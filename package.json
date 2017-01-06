@@ -3,11 +3,16 @@
   "version": "0.0.3",
   "description": "Amazon AWS S3 Upload Policy Generator with Signature Version 4",
   "main": "lib/index.js",
+  "files": [
+    "lib/",
+    "LICENSE"
+  ],
   "scripts": {
     "babel": "BABEL_ENV=babel babel src --out-dir lib",
     "babel-watch": "BABEL_ENV=babel babel src --watch --out-dir lib",
     "start": "npm run babel",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublish": "npm run babel"
   },
   "repository": {
     "type": "git",
